@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Socket.IO chat</title>
+  <style>
+    ul { list-style-type: none; padding: 0; }
+    li { padding: 8px; margin-bottom: 10px; background: #f4f4f4; }
+    input { padding: 10px; width: calc(100% - 22px); }
+    .typing { color: grey; font-style: italic; }
+  </style>
+</head>
+<body>
+  <div>
+    <label for="nickname">Enter your nickname:</label>
+    <input id="nickname" autocomplete="off" /><button id="set-nickname">Set</button>
+  </div>
+  <ul id="messages"></ul>
+  <form id="form" action="">
+    <input id="input" autocomplete="off" /><button>Send</button>
+  </form>
+  <div id="typing"></div>
+  <div>
+    <h3>Users Online</h3>
+    <ul id="users"></ul>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    var socket = io();
+    var form = document.getElementById('form');
+    var input = document.getElementById('input');
+    var nicknameInput = document.getElementById('nickname');
+    var setNicknameButton = document.getElementById('set-nickname');
+    var messages = document.getElementById('messages');
+    var typingDiv = document.getElementById('typing');
+    var usersList = document.getElementById('users');
+
+    var nickname = '';
+
+    setNicknameButton.addEventListener('click', function() {
+      nickname = nicknameInput.value;
+      socket.emit('set nickname', nickname);
+      nicknameInput.disabled = true;
+      setNicknameButton.disabled = true;
+    });
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (input.value) {
+        var item = document.createElement('li');
+        item.textContent = nickname + ": " + input.value;
+        messages.appendChild(item);
+        window.scrollTo(0, document.body.scrollHeight);
+        socket.emit('user-message', input.value);
+        input.value = '';
+      }
+    });
+
+    input.addEventListener('input', function() {
+      socket.emit('typing', input.value !== '');
+    });
+
+    socket.on('message', function(data) {
+      var item = document.createElement('li');
+      item.textContent = data.nickname + ": " + data.message;
+      messages.appendChild(item);
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+
+    socket.on('user connected', function(nickname) {
+      var item = document.createElement('li');
+      item.textContent = nickname + " connected";
+      messages.appendChild(item);
+    });
+
+    socket.on('user disconnected', function(nickname) {
+      var item = document.createElement('li');
+      item.textContent = nickname + " disconnected";
+      messages.appendChild(item);
+    });
+
+    socket.on('typing', function(data) {
+      if (data.isTyping) {
+        typingDiv.textContent = data.nickname + " is typing...";
+      } else {
+        typingDiv.textContent = '';
+      }
+    });
+
+    socket.on('update users', function(users) {
+      usersList.innerHTML = '';
+      users.forEach(function(user) {
+        var item = document.createElement('li');
+        item.textContent = user;
+        usersList.appendChild(item);
+      });
+    });
+
+    socket.on('private message', function(data) {
+      var item = document.createElement('li');
+      item.textContent = "Private from " + data.fromNickname + ": " + data.message;
+      messages.appendChild(item);
+    });
+  </script>
+</body>
+</html>
